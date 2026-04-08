@@ -9,7 +9,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.service_account import Credentials
 
 from app.core.config import get_settings
-from app.services.google_ads_service import matches_language
+from app.services.google_ads_service import matches_language, _resolve_service_account_path
 
 
 SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
@@ -37,8 +37,9 @@ def _previous_period_bounds(start_date: str, end_date: str) -> tuple[str, str]:
 
 def _build_access_token() -> str:
     settings = get_settings()
+    sa_path = _resolve_service_account_path(settings.google_ads_service_account_json)
     credentials = Credentials.from_service_account_file(
-        settings.google_ads_service_account_json,
+        sa_path,
         scopes=[SEARCH_CONSOLE_SCOPE],
     )
     credentials.refresh(Request())

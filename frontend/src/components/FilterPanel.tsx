@@ -414,7 +414,7 @@ export default function FilterPanel({
                 </span>
               ) : null}
             </div>
-            <div style={{ fontSize: 14 }}>{fetchFeedback.description}</div>
+            <div style={{ fontSize: 14, wordBreak: "break-word", overflowWrap: "anywhere", maxHeight: 120, overflow: "auto" }}>{fetchFeedback.description}</div>
             {lastInsertedCount > 0 && fetchFeedback.kind !== "loading" ? (
               <div style={{ fontSize: 13, fontWeight: 700 }}>이번 반영 키워드 수: {lastInsertedCount}건</div>
             ) : null}
