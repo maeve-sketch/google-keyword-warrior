@@ -27,7 +27,7 @@ async def stream_blog_draft(
 ) -> AsyncIterator[str]:
     prompt = build_blog_prompt(clinic_name, keyword, related_keywords, tone, speaker, custom_instruction, intent_segment=intent_segment)
     model_sequence = resolve_model_sequence(model_mode, request_speed)
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         accumulated = ""
         current_prompt = prompt
         for attempt in range(5):
@@ -47,6 +47,14 @@ async def stream_blog_draft(
             return
 
 
+_RETRYABLE_STATUSES = {
+    HTTPStatus.TOO_MANY_REQUESTS,       # 429
+    HTTPStatus.SERVICE_UNAVAILABLE,      # 503
+    HTTPStatus.BAD_GATEWAY,             # 502
+    HTTPStatus.GATEWAY_TIMEOUT,         # 504
+}
+
+
 async def _run_model_sequence(
     client: httpx.AsyncClient,
     model_sequence: List[str],
@@ -57,18 +65,23 @@ async def _run_model_sequence(
     last_error: httpx.HTTPStatusError | None = None
     combined = ""
     for model_name in model_sequence:
-        try:
-            if request_speed == "relaxed":
-                await asyncio.sleep(1.2)
-            elif request_speed == "standard":
-                await asyncio.sleep(0.35)
-            async for chunk in _stream_with_model(client, model_name, gemini_api_key, payload):
-                combined += chunk
-            return combined, None
-        except httpx.HTTPStatusError as exc:
-            last_error = exc
-            if exc.response.status_code != HTTPStatus.TOO_MANY_REQUESTS:
+        for retry in range(3):
+            try:
+                if request_speed == "relaxed":
+                    await asyncio.sleep(1.2)
+                elif request_speed == "standard":
+                    await asyncio.sleep(0.35)
+                if retry > 0:
+                    await asyncio.sleep(2 ** retry)  # exponential backoff: 2s, 4s
+                async for chunk in _stream_with_model(client, model_name, gemini_api_key, payload):
+                    combined += chunk
+                return combined, None
+            except httpx.HTTPStatusError as exc:
+                last_error = exc
+                if exc.response.status_code in _RETRYABLE_STATUSES:
+                    continue  # retry same model
                 raise _map_gemini_http_error(exc) from exc
+        # All retries for this model exhausted, try next model
     return combined, last_error
 
 
@@ -81,7 +94,7 @@ def resolve_model_sequence(model_mode: str, request_speed: str) -> List[str]:
         if model_mode == "quality":
             return [PRIMARY_GEMINI_MODEL, FALLBACK_GEMINI_MODEL]
         return [FALLBACK_GEMINI_MODEL, PRIMARY_GEMINI_MODEL]
-    return [FALLBACK_GEMINI_MODEL]
+    return [FALLBACK_GEMINI_MODEL, PRIMARY_GEMINI_MODEL]
 
 
 def build_gemini_payload(prompt: str, model_mode: str, request_speed: str, continuation: bool = False) -> dict:
