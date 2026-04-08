@@ -136,16 +136,24 @@ export function useBlogGenerate() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
 
+      let sseBuffer = "";
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        chunk
-          .split("\n\n")
+        sseBuffer += decoder.decode(value, { stream: true });
+        const parts = sseBuffer.split("\n\n");
+        // Keep the last (possibly incomplete) part in the buffer
+        sseBuffer = parts.pop() ?? "";
+        parts
           .filter(Boolean)
           .forEach((line) => {
             if (!line.startsWith("data: ")) return;
-            const payload = JSON.parse(line.replace("data: ", ""));
+            let payload;
+            try {
+              payload = JSON.parse(line.replace("data: ", ""));
+            } catch {
+              return; // incomplete JSON chunk, skip
+            }
             if (payload.type === "chunk") {
               chunkCount += 1;
               setStreamedContent((prev) => prev + payload.content);
