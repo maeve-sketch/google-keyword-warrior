@@ -88,15 +88,24 @@ def _query_rows(
     return response.json().get("rows", [])
 
 
+LANGUAGE_COUNTRY_MAP: dict[str, str] = {
+    "ja": "JPN",
+    "ko": "KOR",
+    "en": "USA",
+    "zh-TW": "TWN",
+}
+
+
 def fetch_search_console_queries(date_range: str = "30d", language: str = "ja", limit: int = 50, min_impressions: int = 100) -> List[Dict]:
     settings = get_settings()
+    country = LANGUAGE_COUNTRY_MAP.get(language, settings.search_console_country)
     start_date, end_date = _date_range_bounds(date_range)
     previous_start_date, previous_end_date = _previous_period_bounds(start_date, end_date)
     access_token = _build_access_token()
     rows = _query_rows(
         access_token=access_token,
         site_url=settings.search_console_site_url,
-        country=settings.search_console_country,
+        country=country,
         start_date=start_date,
         end_date=end_date,
         row_limit=limit,
@@ -104,7 +113,7 @@ def fetch_search_console_queries(date_range: str = "30d", language: str = "ja", 
     previous_rows = _query_rows(
         access_token=access_token,
         site_url=settings.search_console_site_url,
-        country=settings.search_console_country,
+        country=country,
         start_date=previous_start_date,
         end_date=previous_end_date,
         row_limit=max(limit * 3, 200),
@@ -145,7 +154,7 @@ def fetch_search_console_queries(date_range: str = "30d", language: str = "ja", 
                 "clicks": clicks,
                 "conversion_rate": ctr,
                 "language_code": language,
-                "geo_target": settings.search_console_country,
+                "geo_target": country,
                 "status": "pending",
                 "fetched_at": end_date,
                 "position": position,

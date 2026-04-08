@@ -39,13 +39,31 @@ def matches_language(keyword: str, language: str) -> bool:
     return True
 
 
+def _resolve_service_account_path(raw: str) -> str:
+    """Accept a file path OR raw JSON string for the service account.
+
+    If the value looks like JSON (starts with '{'), write it to a temp file
+    and return the path. Otherwise treat it as a file path directly.
+    """
+    stripped = raw.strip()
+    if stripped.startswith("{"):
+        import json
+        import tempfile
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        tmp.write(stripped)
+        tmp.close()
+        return tmp.name
+    return stripped
+
+
 def build_client() -> GoogleAdsClient:
     settings = get_settings()
+    sa_path = _resolve_service_account_path(settings.google_ads_service_account_json)
     return GoogleAdsClient.load_from_dict(
         {
             "developer_token": settings.google_ads_developer_token,
             "login_customer_id": _normalize_customer_id(settings.google_ads_login_customer_id),
-            "json_key_file_path": settings.google_ads_service_account_json,
+            "json_key_file_path": sa_path,
             "use_proto_plus": True,
         },
         version=settings.google_ads_api_version,
