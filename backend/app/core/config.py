@@ -32,6 +32,7 @@ class Settings:
     supabase_url: str = ""
     supabase_service_role_key: str = ""
     frontend_url: str = "http://localhost:5173"
+    extra_cors_origins: str = ""
     schedule_cron: str = "0 9 * * 1"
     seed_expansion_enabled: bool = True
     seed_expansion_cron: str = "0 6 * * *"
@@ -50,6 +51,7 @@ def get_settings() -> Settings:
         supabase_url=os.getenv("SUPABASE_URL", "").strip(),
         supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip(),
         frontend_url=os.getenv("FRONTEND_URL", "http://localhost:5173").strip(),
+        extra_cors_origins=os.getenv("EXTRA_CORS_ORIGINS", "").strip(),
         schedule_cron=os.getenv("SCHEDULE_CRON", "0 9 * * 1").strip(),
         seed_expansion_enabled=os.getenv("SEED_EXPANSION_ENABLED", "true").strip().lower() in ("true", "1", "yes"),
         seed_expansion_cron=os.getenv("SEED_EXPANSION_CRON", "0 6 * * *").strip(),

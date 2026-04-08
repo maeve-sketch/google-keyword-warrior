@@ -1,6 +1,6 @@
 import type { BlogPost, ContentInventoryItem, Keyword, SeedExpansionConfig } from "../types";
 
-const API_BASE = "http://127.0.0.1:3001";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:3001";
 
 export async function fetchKeywords(params: Record<string, string | number | undefined> = {}): Promise<{ keywords: Keyword[]; total: number }> {
   const search = new URLSearchParams();

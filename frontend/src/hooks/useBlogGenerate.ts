@@ -95,7 +95,8 @@ export function useBlogGenerate() {
     let doneBlogId = "";
 
     try {
-      const response = await fetch("http://127.0.0.1:3001/api/blog/generate", {
+      const apiBase = import.meta.env.VITE_API_BASE || "http://127.0.0.1:3001";
+      const response = await fetch(`${apiBase}/api/blog/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
