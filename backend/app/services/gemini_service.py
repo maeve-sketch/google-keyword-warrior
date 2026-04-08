@@ -14,6 +14,7 @@ from app.services.llm_prompt import build_blog_prompt, build_continuation_prompt
 
 PRIMARY_GEMINI_MODEL = "gemini-2.5-pro"
 FALLBACK_GEMINI_MODEL = "gemini-2.5-flash"
+STABLE_GEMINI_MODEL = "gemini-2.0-flash"
 
 
 async def stream_blog_draft(
@@ -94,15 +95,16 @@ async def _run_model_sequence(
 
 
 def resolve_model_sequence(model_mode: str, request_speed: str) -> List[str]:
+    # Always append gemini-2.0-flash as last-resort stable fallback
     if request_speed == "priority":
         if model_mode == "quality":
-            return [PRIMARY_GEMINI_MODEL, FALLBACK_GEMINI_MODEL]
-        return [FALLBACK_GEMINI_MODEL, PRIMARY_GEMINI_MODEL]
+            return [PRIMARY_GEMINI_MODEL, FALLBACK_GEMINI_MODEL, STABLE_GEMINI_MODEL]
+        return [FALLBACK_GEMINI_MODEL, PRIMARY_GEMINI_MODEL, STABLE_GEMINI_MODEL]
     if request_speed == "standard":
         if model_mode == "quality":
-            return [PRIMARY_GEMINI_MODEL, FALLBACK_GEMINI_MODEL]
-        return [FALLBACK_GEMINI_MODEL, PRIMARY_GEMINI_MODEL]
-    return [FALLBACK_GEMINI_MODEL, PRIMARY_GEMINI_MODEL]
+            return [PRIMARY_GEMINI_MODEL, FALLBACK_GEMINI_MODEL, STABLE_GEMINI_MODEL]
+        return [FALLBACK_GEMINI_MODEL, PRIMARY_GEMINI_MODEL, STABLE_GEMINI_MODEL]
+    return [FALLBACK_GEMINI_MODEL, PRIMARY_GEMINI_MODEL, STABLE_GEMINI_MODEL]
 
 
 def build_gemini_payload(prompt: str, model_mode: str, request_speed: str, continuation: bool = False) -> dict:
