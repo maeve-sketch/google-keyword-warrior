@@ -141,16 +141,23 @@ export function useBlogGenerate() {
         const { value, done } = await reader.read();
         if (done) break;
         sseBuffer += decoder.decode(value, { stream: true });
-        const parts = sseBuffer.split("\n\n");
+        // Split on double newline (SSE event boundary) — also handle \r\n\r\n
+        const parts = sseBuffer.split(/\r?\n\r?\n/);
         // Keep the last (possibly incomplete) part in the buffer
         sseBuffer = parts.pop() ?? "";
         parts
           .filter(Boolean)
-          .forEach((line) => {
-            if (!line.startsWith("data: ")) return;
+          .forEach((raw) => {
+            // Extract all "data: ..." lines and join their content
+            const dataContent = raw
+              .split(/\r?\n/)
+              .filter((l) => l.startsWith("data: "))
+              .map((l) => l.slice(6))
+              .join("");
+            if (!dataContent) return;
             let payload;
             try {
-              payload = JSON.parse(line.replace("data: ", ""));
+              payload = JSON.parse(dataContent);
             } catch {
               return; // incomplete JSON chunk, skip
             }
