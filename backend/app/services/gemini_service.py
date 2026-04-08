@@ -81,7 +81,11 @@ async def _run_model_sequence(
                 return combined, None
             except httpx.HTTPStatusError as exc:
                 last_error = exc
-                resp_text = exc.response.text[:500] if exc.response.text else "(empty)"
+                try:
+                    await exc.response.aread()
+                    resp_text = exc.response.text[:500]
+                except Exception:
+                    resp_text = "(could not read body)"
                 logger.error(
                     "Gemini API error: model=%s status=%s retry=%d/%d body=%s",
                     model_name, exc.response.status_code, retry + 1, 3, resp_text,
