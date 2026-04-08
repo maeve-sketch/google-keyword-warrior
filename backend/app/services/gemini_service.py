@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from http import HTTPStatus
 from typing import AsyncIterator, List
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 from app.services.llm_prompt import build_blog_prompt, build_continuation_prompt, is_draft_complete
 
@@ -78,10 +81,16 @@ async def _run_model_sequence(
                 return combined, None
             except httpx.HTTPStatusError as exc:
                 last_error = exc
+                resp_text = exc.response.text[:500] if exc.response.text else "(empty)"
+                logger.error(
+                    "Gemini API error: model=%s status=%s retry=%d/%d body=%s",
+                    model_name, exc.response.status_code, retry + 1, 3, resp_text,
+                )
                 if exc.response.status_code in _RETRYABLE_STATUSES:
                     continue  # retry same model
                 raise _map_gemini_http_error(exc) from exc
-        # All retries for this model exhausted, try next model
+        logger.warning("All retries exhausted for model=%s, trying next", model_name)
+    logger.error("All models failed. Last error: %s", last_error)
     return combined, last_error
 
 
