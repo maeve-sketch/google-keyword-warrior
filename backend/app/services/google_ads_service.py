@@ -39,21 +39,28 @@ def matches_language(keyword: str, language: str) -> bool:
     return True
 
 
+_cached_sa_path: str | None = None
+
+
 def _resolve_service_account_path(raw: str) -> str:
     """Accept a file path OR raw JSON string for the service account.
 
-    If the value looks like JSON (starts with '{'), write it to a temp file
-    and return the path. Otherwise treat it as a file path directly.
+    If the value looks like JSON (starts with '{'), write it to a fixed temp
+    file once and reuse the path on subsequent calls. No file accumulation.
     """
+    global _cached_sa_path
     stripped = raw.strip()
-    if stripped.startswith("{"):
-        import json
-        import tempfile
-        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
-        tmp.write(stripped)
-        tmp.close()
-        return tmp.name
-    return stripped
+    if not stripped.startswith("{"):
+        return stripped
+    if _cached_sa_path is not None:
+        return _cached_sa_path
+    import os
+    import tempfile
+    path = os.path.join(tempfile.gettempdir(), "gkw_service_account.json")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(stripped)
+    _cached_sa_path = path
+    return path
 
 
 def build_client() -> GoogleAdsClient:
