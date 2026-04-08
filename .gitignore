@@ -1,0 +1,17 @@
+# Environment & secrets
+.env
+*.json.bak
+secrets/
+
+# Backend
+__pycache__/
+*.pyc
+backend/storage/*.json
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
