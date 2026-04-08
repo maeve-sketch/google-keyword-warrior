@@ -81,14 +81,9 @@ async def _run_model_sequence(
                 return combined, None
             except httpx.HTTPStatusError as exc:
                 last_error = exc
-                try:
-                    await exc.response.aread()
-                    resp_text = exc.response.text[:500]
-                except Exception:
-                    resp_text = "(could not read body)"
                 logger.error(
-                    "Gemini API error: model=%s status=%s retry=%d/%d body=%s",
-                    model_name, exc.response.status_code, retry + 1, 3, resp_text,
+                    "Gemini retry: model=%s status=%s attempt=%d/3",
+                    model_name, exc.response.status_code, retry + 1,
                 )
                 if exc.response.status_code in _RETRYABLE_STATUSES:
                     continue  # retry same model
@@ -137,7 +132,10 @@ async def _stream_with_model(
 ) -> AsyncIterator[str]:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:streamGenerateContent?alt=sse&key={gemini_api_key}"
     async with client.stream("POST", url, json=payload) as response:
-        response.raise_for_status()
+        if response.status_code >= 400:
+            body = (await response.aread()).decode(errors="replace")[:500]
+            logger.error("Gemini HTTP %s from %s: %s", response.status_code, model_name, body)
+            response.raise_for_status()
         async for line in response.aiter_lines():
             if not line.startswith("data: "):
                 continue
@@ -163,6 +161,8 @@ def _map_gemini_http_error(exc: httpx.HTTPStatusError) -> RuntimeError:
     status_code = exc.response.status_code
     if status_code == HTTPStatus.TOO_MANY_REQUESTS:
         return RuntimeError("Gemini API 사용량이 잠시 초과되었습니다. 잠시 후 다시 시도하거나 다른 Gemini API 키를 사용해 주세요.")
+    if status_code in (HTTPStatus.SERVICE_UNAVAILABLE, HTTPStatus.BAD_GATEWAY, HTTPStatus.GATEWAY_TIMEOUT):
+        return RuntimeError(f"Gemini 서버가 일시적으로 과부하 상태입니다 (HTTP {status_code}). 1~2분 후 다시 시도해 주세요.")
     if status_code == HTTPStatus.UNAUTHORIZED:
         return RuntimeError("Gemini API 키가 유효하지 않습니다. 키를 다시 확인해 주세요.")
     if status_code == HTTPStatus.FORBIDDEN:
